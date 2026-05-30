@@ -4,9 +4,10 @@ import '../database/hive_service.dart';
 import '../models/history_entry.dart';
 import '../models/inventory_item.dart';
 
-final inventoryProvider = NotifierProvider<InventoryNotifier, List<InventoryItem>>(() {
-  return InventoryNotifier();
-});
+final inventoryProvider =
+    NotifierProvider<InventoryNotifier, List<InventoryItem>>(() {
+      return InventoryNotifier();
+    });
 
 class InventoryNotifier extends Notifier<List<InventoryItem>> {
   final HiveInventoryService _service = HiveInventoryService();
@@ -97,6 +98,24 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
 
   Future<List<HistoryEntry>> loadHistory() async => _service.loadHistory();
 
+  InventoryItem? getItemByCode(String code) {
+    final normalized = code.trim();
+    for (final item in state) {
+      if (item.code == normalized) return item;
+    }
+    return null;
+  }
+
+  List<InventoryItem> suggestItems(String query) {
+    final value = query.trim().toLowerCase();
+    if (value.isEmpty) return [];
+
+    return state.where((item) {
+      return item.code.toLowerCase().contains(value) ||
+          item.name.toLowerCase().contains(value);
+    }).toList();
+  }
+
   List<InventoryItem> search(String query) {
     final value = query.trim().toLowerCase();
     if (value.isEmpty) return state;
@@ -107,7 +126,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
     }).toList();
   }
 
-  int get totalQuantity => state.fold<int>(0, (sum, item) => sum + item.quantity);
+  int get totalQuantity =>
+      state.fold<int>(0, (sum, item) => sum + item.quantity);
 
   int get lowStockItems => state.where((item) => item.quantity < 5).length;
 

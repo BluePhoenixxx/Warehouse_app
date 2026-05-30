@@ -20,6 +20,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   final TextEditingController _quantityController = TextEditingController(
     text: '1',
   );
+  List<InventoryItem> _suggestedItems = [];
 
   @override
   void dispose() {
@@ -33,9 +34,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.mode == 'input' ? 'Nhập hàng bằng QR' : 'Xuất hàng bằng QR',
-        ),
+        title: Text(widget.mode == 'input' ? 'Nhập hàng' : 'Xuất hàng'),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -66,11 +65,32 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _codeController,
+                    onChanged: _updateSuggestions,
                     decoration: const InputDecoration(
                       labelText: 'Mã sản phẩm',
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  if (_suggestedItems.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Gợi ý mã đã có:',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _suggestedItems
+                          .map(
+                            (item) => ActionChip(
+                              label: Text('${item.code} • ${item.name}'),
+                              onPressed: () => _applySuggestion(item),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   TextField(
                     controller: _nameController,
@@ -93,6 +113,26 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  if (_codeController.text.trim().isNotEmpty)
+                    Builder(
+                      builder: (context) {
+                        final code = _codeController.text.trim();
+                        final existing = ref
+                            .read(inventoryProvider.notifier)
+                            .getItemByCode(code);
+                        if (existing == null) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Đã có mã này: ${existing.name} • Tồn hiện tại: ${existing.quantity}',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      },
+                    ),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -165,11 +205,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   }
 
   Future<void> _handleScannedCode(String value) async {
-    setState(() => _lastCode = value);
+    final existing = ref.read(inventoryProvider.notifier).getItemByCode(value);
+    setState(() {
+      _lastCode = value;
+      _codeController.text = value;
+      if (existing != null) {
+        _nameController.text = existing.name;
+      }
+    });
+
     final quantity = int.tryParse(_quantityController.text) ?? 1;
 
     if (widget.mode == 'input') {
-      final name = _nameController.text.trim().isEmpty
+      final name = existing != null
+          ? existing.name
+          : _nameController.text.trim().isEmpty
           ? 'Sản phẩm $value'
           : _nameController.text.trim();
       await ref
@@ -187,6 +237,24 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     } else {
       _showSnackBar('Đã xuất $quantity sản phẩm: $value');
     }
+  }
+
+  void _updateSuggestions(String value) {
+    final suggestions = ref
+        .read(inventoryProvider.notifier)
+        .suggestItems(value);
+    setState(() {
+      _suggestedItems = suggestions;
+    });
+  }
+
+  void _applySuggestion(InventoryItem item) {
+    setState(() {
+      _codeController.text = item.code;
+      _nameController.text = item.name;
+      _lastCode = item.code;
+      _suggestedItems = [];
+    });
   }
 
   void _showSnackBar(String message) {
