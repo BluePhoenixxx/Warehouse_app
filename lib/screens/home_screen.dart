@@ -36,163 +36,215 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-              'Xin chào! Bạn có ${inventory.length} mặt hàng trong kho.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _ActionCard(
-                  icon: Icons.qr_code_scanner,
-                  title: 'Nhập hàng',
-                  subtitle: 'Quét mã QR để cộng tồn kho',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ScanScreen(mode: 'input')),
+                'Xin chào! Bạn có ${inventory.length} mặt hàng trong kho.',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _ActionCard(
+                    icon: Icons.qr_code_scanner,
+                    title: 'Nhập hàng',
+                    subtitle: 'Quét mã QR hoặc nhập mã để cộng tồn kho',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ScanScreen(mode: 'input'),
+                      ),
+                    ),
                   ),
-                ),
-                _ActionCard(
-                  icon: Icons.output_rounded,
-                  title: 'Xuất hàng',
-                  subtitle: 'Quét mã QR để trừ tồn kho',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ScanScreen(mode: 'output')),
+                  _ActionCard(
+                    icon: Icons.output_rounded,
+                    title: 'Xuất hàng',
+                    subtitle: 'Quét mã QR hoặc nhập mã để trừ tồn kho',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ScanScreen(mode: 'output'),
+                      ),
+                    ),
                   ),
-                ),
-                _ActionCard(
-                  icon: Icons.search,
-                  title: 'Tìm kiếm',
-                  subtitle: 'Nhập mã hàng để tra cứu',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  _ActionCard(
+                    icon: Icons.search,
+                    title: 'Tìm kiếm',
+                    subtitle: 'Nhập mã hàng để tra cứu',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SearchScreen()),
+                    ),
                   ),
-                ),
-                _ActionCard(
-                  icon: Icons.bar_chart,
-                  title: 'Thống kê',
-                  subtitle: 'Số lượng tồn và mặt hàng sắp hết',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const StatsScreen()),
+                  _ActionCard(
+                    icon: Icons.bar_chart,
+                    title: 'Thống kê',
+                    subtitle: 'Số lượng tồn và mặt hàng sắp hết',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                    ),
                   ),
-                ),
-                _ActionCard(
-                  icon: Icons.history,
-                  title: 'Lịch sử',
-                  subtitle: 'Xem và lọc nhập/xuất theo ngày',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                  _ActionCard(
+                    icon: Icons.history,
+                    title: 'Lịch sử',
+                    subtitle: 'Xem và lọc nhập/xuất theo ngày',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      final path = await backupService.saveBackupToDevice();
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(path == null ? 'Đã huỷ lưu backup.' : 'Đã lưu backup tại: $path'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.save_alt),
-                    label: const Text('Lưu backup'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final path = await backupService.pickBackupFile();
-                      if (path == null) return;
-                      await backupService.restoreFromFile(path);
-                      await ref.read(inventoryProvider.notifier).loadInventory();
-                      if (context.mounted) {
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        final path = await backupService.saveBackupToDevice();
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Khôi phục dữ liệu thành công.')),
+                          SnackBar(
+                            content: Text(
+                              path == null
+                                  ? 'Đã huỷ lưu backup.'
+                                  : 'Đã lưu backup tại: $path',
+                            ),
+                          ),
                         );
-                      }
-                    },
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Khôi phục'),
+                      },
+                      icon: const Icon(Icons.save_alt),
+                      label: const Text('Lưu backup'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text('Tổng quan kho', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _SummaryCard(inventory: inventory),
-            const SizedBox(height: 24),
-            Text('Lịch sử thêm/xuất gần đây', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            FutureBuilder<List<HistoryEntry>>(
-              future: ref.read(inventoryProvider.notifier).recentHistory(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final history = snapshot.data!.take(6).toList();
-                if (history.isEmpty) {
-                  return const Card(child: ListTile(title: Text('Chưa có lịch sử nhập/xuất.')));
-                }
-                return Column(
-                  children: history.map((entry) {
-                    final isImport = entry.type == 'import';
-                    return Card(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final path = await backupService.pickBackupFile();
+                        if (path == null) return;
+                        await backupService.restoreFromFile(path);
+                        await ref
+                            .read(inventoryProvider.notifier)
+                            .loadInventory();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Khôi phục dữ liệu thành công.'),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.restore),
+                      label: const Text('Khôi phục'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Tổng quan kho',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _SummaryCard(inventory: inventory),
+              const SizedBox(height: 24),
+              Text(
+                'Lịch sử thêm/xuất gần đây',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder<List<HistoryEntry>>(
+                future: ref.read(inventoryProvider.notifier).recentHistory(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final history = snapshot.data!.take(6).toList();
+                  if (history.isEmpty) {
+                    return const Card(
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isImport ? Colors.green.shade100 : Colors.orange.shade100,
-                          child: Icon(isImport ? Icons.download : Icons.upload, color: isImport ? Colors.green : Colors.orange),
-                        ),
-                        title: Text('${isImport ? 'Nhập' : 'Xuất'} ${entry.quantity} x ${entry.name}'),
-                        subtitle: Text('Mã: ${entry.code} • ${entry.createdAt.toLocal().toString().split('.').first}'),
-                        trailing: Chip(label: Text(isImport ? 'Nhập' : 'Xuất')),
+                        title: Text('Chưa có lịch sử nhập/xuất.'),
                       ),
                     );
-                  }).toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            Text('Mặt hàng gần đây', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            inventory.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Chưa có dữ liệu kho. Hãy quét mã QR để bắt đầu.'),
-                    ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: inventory.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = inventory[index];
+                  }
+                  return Column(
+                    children: history.map((entry) {
+                      final isImport = entry.type == 'import';
                       return Card(
-                        elevation: 1,
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: item.quantity < 5 ? Colors.orange.shade100 : Colors.blue.shade100,
-                            child: Icon(Icons.inventory_2_outlined, color: item.quantity < 5 ? Colors.orange : Colors.blue),
+                            backgroundColor: isImport
+                                ? Colors.green.shade100
+                                : Colors.orange.shade100,
+                            child: Icon(
+                              isImport ? Icons.download : Icons.upload,
+                              color: isImport ? Colors.green : Colors.orange,
+                            ),
                           ),
-                          title: Text(item.name, style: Theme.of(context).textTheme.titleMedium),
-                          subtitle: Text('Mã: ${item.code} • Cập nhật: ${item.updatedAt.toLocal().toString().split('.').first}'),
+                          title: Text(
+                            '${isImport ? 'Nhập' : 'Xuất'} ${entry.quantity} x ${entry.name}',
+                          ),
+                          subtitle: Text(
+                            'Mã: ${entry.code} • ${entry.createdAt.toLocal().toString().split('.').first}',
+                          ),
                           trailing: Chip(
-                            label: Text('Tồn: ${item.quantity}'),
-                            backgroundColor: item.quantity < 5 ? Colors.orange.shade100 : Colors.green.shade100,
+                            label: Text(isImport ? 'Nhập' : 'Xuất'),
                           ),
                         ),
                       );
-                    },
-                  ),
+                    }).toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Mặt hàng gần đây',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              inventory.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'Chưa có dữ liệu kho. Hãy quét mã QR để bắt đầu.',
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: inventory.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = inventory[index];
+                        return Card(
+                          elevation: 1,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: item.quantity < 5
+                                  ? Colors.orange.shade100
+                                  : Colors.blue.shade100,
+                              child: Icon(
+                                Icons.inventory_2_outlined,
+                                color: item.quantity < 5
+                                    ? Colors.orange
+                                    : Colors.blue,
+                              ),
+                            ),
+                            title: Text(
+                              item.name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            subtitle: Text(
+                              'Mã: ${item.code} • Cập nhật: ${item.updatedAt.toLocal().toString().split('.').first}',
+                            ),
+                            trailing: Chip(
+                              label: Text('Tồn: ${item.quantity}'),
+                              backgroundColor: item.quantity < 5
+                                  ? Colors.orange.shade100
+                                  : Colors.green.shade100,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ],
           ),
         ),
@@ -217,15 +269,27 @@ class _SummaryCard extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _MiniStat(title: 'Tổng tồn', value: total.toString(), color: Colors.blue),
+              child: _MiniStat(
+                title: 'Tổng tồn',
+                value: total.toString(),
+                color: Colors.blue,
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _MiniStat(title: 'Sắp hết', value: low.toString(), color: Colors.orange),
+              child: _MiniStat(
+                title: 'Sắp hết',
+                value: low.toString(),
+                color: Colors.orange,
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _MiniStat(title: 'Mặt hàng', value: inventory.length.toString(), color: Colors.green),
+              child: _MiniStat(
+                title: 'Mặt hàng',
+                value: inventory.length.toString(),
+                color: Colors.green,
+              ),
             ),
           ],
         ),
@@ -235,7 +299,11 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.title, required this.value, required this.color});
+  const _MiniStat({
+    required this.title,
+    required this.value,
+    required this.color,
+  });
 
   final String title;
   final String value;
@@ -254,7 +322,12 @@ class _MiniStat extends StatelessWidget {
         children: [
           Text(title, style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );

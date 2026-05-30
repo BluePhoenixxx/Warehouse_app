@@ -15,11 +15,15 @@ class ScanScreen extends ConsumerStatefulWidget {
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
   String? _lastCode;
+  final TextEditingController _codeController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController(text: '1');
+  final TextEditingController _quantityController = TextEditingController(
+    text: '1',
+  );
 
   @override
   void dispose() {
+    _codeController.dispose();
     _nameController.dispose();
     _quantityController.dispose();
     super.dispose();
@@ -29,7 +33,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.mode == 'input' ? 'Nhập hàng bằng QR' : 'Xuất hàng bằng QR'),
+        title: Text(
+          widget.mode == 'input' ? 'Nhập hàng bằng QR' : 'Xuất hàng bằng QR',
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -38,32 +44,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               height: 320,
               child: MobileScanner(
                 onDetect: (capture) {
-                final value = capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue : null;
-                if (value == null || value == _lastCode) return;
-
-                setState(() => _lastCode = value);
-                final quantity = int.tryParse(_quantityController.text) ?? 1;
-
-                if (widget.mode == 'input') {
-                  final name = _nameController.text.trim().isEmpty
-                      ? 'Sản phẩm $value'
-                      : _nameController.text.trim();
-                  ref.read(inventoryProvider.notifier).addStock(value, name, quantity);
-                  _showSnackBar('Đã lưu mã QR: $value (x$quantity)');
-                  return;
-                }
-
-                Future.microtask(() async {
-                  final success = await ref.read(inventoryProvider.notifier).removeStock(value, quantity);
-                  if (!success) {
-                    _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
-                  } else {
-                    _showSnackBar('Đã xuất $quantity sản phẩm: $value');
-                  }
-                });
-              },
+                  final value = capture.barcodes.isNotEmpty
+                      ? capture.barcodes.first.rawValue
+                      : null;
+                  if (value == null || value == _lastCode) return;
+                  _handleScannedCode(value);
+                },
+              ),
             ),
-          ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -71,9 +59,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 children: [
                   Text(
                     widget.mode == 'input'
-                        ? 'Hướng dẫn: Nhập tên và số lượng trước khi quét để lưu mã QR vào kho.'
-                        : 'Hướng dẫn: Quét mã QR của sản phẩm để giảm tồn kho.',
+                        ? 'Hướng dẫn: Nhập mã, tên và số lượng rồi quét mã QR hoặc dùng nút bên dưới để thao tác bằng tay.'
+                        : 'Hướng dẫn: Nhập mã và số lượng rồi quét mã QR hoặc dùng nút bên dưới để xuất hàng bằng tay.',
                     style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _codeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Mã sản phẩm',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -90,13 +86,33 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     controller: _quantityController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: widget.mode == 'input' ? 'Số lượng nhập' : 'Số lượng xuất',
+                      labelText: widget.mode == 'input'
+                          ? 'Số lượng nhập'
+                          : 'Số lượng xuất',
                       border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _handleManualAction,
+                      icon: Icon(
+                        widget.mode == 'input' ? Icons.add : Icons.remove,
+                      ),
+                      label: Text(
+                        widget.mode == 'input'
+                            ? 'Nhập bằng mã'
+                            : 'Xuất bằng mã',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   if (_lastCode != null)
-                    Text('Mã vừa quét: $_lastCode', style: Theme.of(context).textTheme.bodyLarge),
+                    Text(
+                      'Mã vừa quét: $_lastCode',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -115,7 +131,67 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     );
   }
 
+  Future<void> _handleManualAction() async {
+    final code = _codeController.text.trim();
+    final quantity = int.tryParse(_quantityController.text) ?? 0;
+
+    if (code.isEmpty) {
+      _showSnackBar('Vui lòng nhập mã sản phẩm.');
+      return;
+    }
+    if (quantity <= 0) {
+      _showSnackBar('Số lượng phải lớn hơn 0.');
+      return;
+    }
+
+    setState(() => _lastCode = code);
+    if (widget.mode == 'input') {
+      final name = _nameController.text.trim().isEmpty
+          ? 'Sản phẩm $code'
+          : _nameController.text.trim();
+      await ref.read(inventoryProvider.notifier).addStock(code, name, quantity);
+      _showSnackBar('Đã nhập $quantity sản phẩm: $code');
+      return;
+    }
+
+    final success = await ref
+        .read(inventoryProvider.notifier)
+        .removeStock(code, quantity);
+    if (!success) {
+      _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
+    } else {
+      _showSnackBar('Đã xuất $quantity sản phẩm: $code');
+    }
+  }
+
+  Future<void> _handleScannedCode(String value) async {
+    setState(() => _lastCode = value);
+    final quantity = int.tryParse(_quantityController.text) ?? 1;
+
+    if (widget.mode == 'input') {
+      final name = _nameController.text.trim().isEmpty
+          ? 'Sản phẩm $value'
+          : _nameController.text.trim();
+      await ref
+          .read(inventoryProvider.notifier)
+          .addStock(value, name, quantity);
+      _showSnackBar('Đã lưu mã QR: $value (x$quantity)');
+      return;
+    }
+
+    final success = await ref
+        .read(inventoryProvider.notifier)
+        .removeStock(value, quantity);
+    if (!success) {
+      _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
+    } else {
+      _showSnackBar('Đã xuất $quantity sản phẩm: $value');
+    }
+  }
+
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
