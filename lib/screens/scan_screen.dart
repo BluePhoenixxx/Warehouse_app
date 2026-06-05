@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../models/inventory_item.dart';
 import '../providers/inventory_provider.dart';
 
 class ScanScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,7 @@ class ScanScreen extends ConsumerStatefulWidget {
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
   String? _lastCode;
+  bool _isScannerActive = false;
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController(

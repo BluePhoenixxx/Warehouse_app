@@ -22,9 +22,13 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
     state = await _service.loadItems();
   }
 
+  String _normalizeCode(String code) => code.trim();
+
   Future<void> addStock(String code, String name, int quantity) async {
-    final existing = state.where((item) => item.code == code).isNotEmpty
-        ? state.firstWhere((item) => item.code == code)
+    final normalizedCode = _normalizeCode(code);
+    final existing =
+        state.where((item) => item.code == normalizedCode).isNotEmpty
+        ? state.firstWhere((item) => item.code == normalizedCode)
         : null;
 
     if (existing != null) {
@@ -37,8 +41,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
       await _service.saveItem(updated);
     } else {
       final created = InventoryItem(
-        code: code,
-        name: name.isEmpty ? 'Sản phẩm $code' : name,
+        code: normalizedCode,
+        name: name.isEmpty ? 'Sản phẩm $normalizedCode' : name,
         quantity: quantity,
         updatedAt: DateTime.now(),
       );
@@ -49,8 +53,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
       HistoryEntry(
         id: 'import_${DateTime.now().millisecondsSinceEpoch}',
         type: 'import',
-        code: code,
-        name: name.isEmpty ? 'Sản phẩm $code' : name,
+        code: normalizedCode,
+        name: name.isEmpty ? 'Sản phẩm $normalizedCode' : name,
         quantity: quantity,
         createdAt: DateTime.now(),
       ),
@@ -60,8 +64,10 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
   }
 
   Future<bool> removeStock(String code, int quantity) async {
-    final existing = state.where((item) => item.code == code).isNotEmpty
-        ? state.firstWhere((item) => item.code == code)
+    final normalizedCode = _normalizeCode(code);
+    final existing =
+        state.where((item) => item.code == normalizedCode).isNotEmpty
+        ? state.firstWhere((item) => item.code == normalizedCode)
         : null;
 
     if (existing == null || quantity <= 0 || existing.quantity < quantity) {
@@ -99,7 +105,7 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
   Future<List<HistoryEntry>> loadHistory() async => _service.loadHistory();
 
   InventoryItem? getItemByCode(String code) {
-    final normalized = code.trim();
+    final normalized = _normalizeCode(code);
     for (final item in state) {
       if (item.code == normalized) return item;
     }
