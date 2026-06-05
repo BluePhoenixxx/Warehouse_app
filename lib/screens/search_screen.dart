@@ -50,7 +50,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         return Card(
                           child: ListTile(
                             title: Text(item.name),
-                            subtitle: Text('Mã: ${item.code}'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Mã: ${item.code}'),
+                                if (item.qrCodes.isNotEmpty)
+                                  Text(
+                                    'Mã QR liên kết: ${item.qrCodes.join(", ")}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                                  ),
+                              ],
+                            ),
                             trailing: Chip(label: Text('Tồn: ${item.quantity}')),
                           ),
                         );

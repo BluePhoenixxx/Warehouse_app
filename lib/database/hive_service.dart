@@ -57,11 +57,26 @@ class HiveInventoryService {
         .toList();
   }
 
+  Future<List<Map<String, dynamic>>> exportHistory() async {
+    final box = await openHistoryBox();
+    return box.values
+        .map((raw) => Map<String, dynamic>.from(raw))
+        .toList();
+  }
+
   Future<void> restoreItems(List<InventoryItem> items) async {
     final box = await openBox();
     await box.clear();
     for (final item in items) {
       await box.put(item.code, item.toMap());
+    }
+  }
+
+  Future<void> restoreHistory(List<HistoryEntry> history) async {
+    final box = await openHistoryBox();
+    await box.clear();
+    for (final entry in history) {
+      await box.put(entry.id, entry.toMap());
     }
   }
 }

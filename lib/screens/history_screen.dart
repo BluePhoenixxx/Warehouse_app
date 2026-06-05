@@ -51,7 +51,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _typeFilter,
+                        initialValue: _typeFilter,
                         decoration: const InputDecoration(labelText: 'Loại giao dịch', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('Tất cả')),
@@ -99,7 +99,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                   return ListView.separated(
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final entry = filtered[index];
                       final isImport = entry.type == 'import';

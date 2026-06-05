@@ -23,12 +23,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     text: '1',
   );
   List<InventoryItem> _suggestedItems = [];
+  late MobileScannerController _scannerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scannerController = MobileScannerController();
+  }
 
   @override
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
     _quantityController.dispose();
+    _scannerController.dispose();
     super.dispose();
   }
 
@@ -41,18 +49,25 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(
-              height: 320,
-              child: MobileScanner(
-                onDetect: (capture) {
-                  final value = capture.barcodes.isNotEmpty
-                      ? capture.barcodes.first.rawValue
-                      : null;
-                  if (value == null || value == _lastCode) return;
-                  _handleScannedCode(value);
-                },
+            if (_isScannerActive)
+              SizedBox(
+                height: 320,
+                child: MobileScanner(
+                  controller: _scannerController,
+                  onDetect: (capture) {
+    final value = capture.barcodes.isNotEmpty
+        ? capture.barcodes.first.rawValue
+        : null;
+    if (value == null) return;
+
+    // If the value is the same as the last code, do nothing.
+    // This prevents duplicate processing if the scanner is held over the same code.
+    if (value == _lastCode) return;
+
+    _handleScannedCode(value);
+  },
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -159,9 +174,31 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => _handleManualAction(popAfter: true),
                       icon: const Icon(Icons.done),
                       label: const Text('Hoàn tất'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _isScannerActive = !_isScannerActive;
+                          if (_isScannerActive) {
+                            _scannerController.start();
+                          } else {
+                            _scannerController.stop();
+                          }
+                        });
+                      },
+                      icon: Icon(
+                        _isScannerActive ? Icons.qr_code_scanner : Icons.qr_code,
+                      ),
+                      label: Text(
+                        _isScannerActive ? 'Tắt quét QR' : 'Bật quét QR',
+                      ),
                     ),
                   ),
                 ],
@@ -173,7 +210,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     );
   }
 
-  Future<void> _handleManualAction() async {
+  Future<void> _handleManualAction({bool popAfter = false}) async {
     final code = _codeController.text.trim();
     final quantity = int.tryParse(_quantityController.text) ?? 0;
 
@@ -187,66 +224,77 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     }
 
     setState(() => _lastCode = code);
+
+    final existingItem = ref.read(inventoryProvider.notifier).getItemByCode(code);
+
     if (widget.mode == 'input') {
       final name = _nameController.text.trim().isEmpty
-          ? 'Sản phẩm $code'
+          ? (existingItem != null ? existingItem.name : 'Sản phẩm $code')
           : _nameController.text.trim();
       await ref.read(inventoryProvider.notifier).addStock(code, name, quantity);
       _showSnackBar('Đã nhập $quantity sản phẩm: $code');
-      return;
+    } else {
+      final success = await ref
+          .read(inventoryProvider.notifier)
+          .removeStock(code, quantity);
+      if (!success) {
+        _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
+        return;
+      } else {
+        _showSnackBar('Đã xuất $quantity sản phẩm: $code');
+      }
     }
 
-    final success = await ref
-        .read(inventoryProvider.notifier)
-        .removeStock(code, quantity);
-    if (!success) {
-      _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
-    } else {
-      _showSnackBar('Đã xuất $quantity sản phẩm: $code');
+    if (popAfter && mounted) {
+      Navigator.of(context).pop();
     }
   }
 
   Future<void> _handleScannedCode(String value) async {
-    final existing = ref.read(inventoryProvider.notifier).getItemByCode(value);
+    String primaryCode = '';
+    String secondaryCode = ''; // To store the '39ESRPWVH923' part if present
+    String name = '';
+
+    // Split the scanned value by '|' to get individual components.
+    final parts = value.split('|');
+    if (parts.length >= 12) { // Assuming the format is consistent with the example
+      primaryCode = parts[0]; // e.g., '4011530'
+      name = parts[1]; // e.g., 'Tụ điện'
+      secondaryCode = parts[11]; // e.g., '39ESRPWVH923'
+    } else {
+      // If the format is not as expected, treat the whole value as the primary code.
+      primaryCode = value;
+    }
+
+    final existing = ref.read(inventoryProvider.notifier).getItemByCode(primaryCode);
     setState(() {
-      _lastCode = value;
-      _codeController.text = value;
+      _isScannerActive = false;
+      _scannerController.stop();
+      _lastCode = primaryCode; // Display the primary code as the last scanned code
+      _codeController.text = primaryCode; // Set the primary code in the input field
+
       if (existing != null) {
         _nameController.text = existing.name;
+      } else if (name.isNotEmpty) {
+        _nameController.text = name;
       }
     });
-
-    final quantity = int.tryParse(_quantityController.text) ?? 1;
-
-    if (widget.mode == 'input') {
-      final name = existing != null
-          ? existing.name
-          : _nameController.text.trim().isEmpty
-          ? 'Sản phẩm $value'
-          : _nameController.text.trim();
-      await ref
-          .read(inventoryProvider.notifier)
-          .addStock(value, name, quantity);
-      _showSnackBar('Đã lưu mã QR: $value (x$quantity)');
-      return;
-    }
-
-    final success = await ref
-        .read(inventoryProvider.notifier)
-        .removeStock(value, quantity);
-    if (!success) {
-      _showSnackBar('Không tồn tại hoặc số lượng xuất vượt tồn kho.');
-    } else {
-      _showSnackBar('Đã xuất $quantity sản phẩm: $value');
-    }
+    _showSnackBar('Đã quét mã: $primaryCode. Vui lòng kiểm tra thông tin và nhấn nút để hoàn tất.');
   }
 
   void _updateSuggestions(String value) {
     final suggestions = ref
         .read(inventoryProvider.notifier)
         .suggestItems(value);
+    
+    // Check if there is an exact match for code or QR code
+    final exactMatch = ref.read(inventoryProvider.notifier).getItemByCode(value);
+
     setState(() {
       _suggestedItems = suggestions;
+      if (exactMatch != null) {
+        _nameController.text = exactMatch.name;
+      }
     });
   }
 
@@ -255,6 +303,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _codeController.text = item.code;
       _nameController.text = item.name;
       _lastCode = item.code;
+      _quantityController.text = '1'; // Keep default quantity as 1 for adding/subtracting
       _suggestedItems = [];
     });
   }

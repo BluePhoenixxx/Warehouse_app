@@ -30,7 +30,7 @@ class StatsScreen extends ConsumerWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final lowStock = item.quantity < 5;
@@ -47,6 +47,11 @@ class StatsScreen extends ConsumerWidget {
                         children: [
                           const SizedBox(height: 4),
                           Text('Mã: ${item.code}', style: Theme.of(context).textTheme.bodyMedium),
+                          if (item.qrCodes.isNotEmpty)
+                            Text(
+                              'Mã QR liên kết: ${item.qrCodes.join(", ")}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                            ),
                           Text('Cập nhật: ${item.updatedAt.toLocal().toString().split('.').first}', style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),

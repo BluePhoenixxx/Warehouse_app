@@ -24,27 +24,37 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
 
   String _normalizeCode(String code) => code.trim();
 
-  Future<void> addStock(String code, String name, int quantity) async {
+  Future<void> addStock(String code, String name, int quantity, {String? qrCode}) async {
     final normalizedCode = _normalizeCode(code);
     final existing =
-        state.where((item) => item.code == normalizedCode).isNotEmpty
-        ? state.firstWhere((item) => item.code == normalizedCode)
+        state.where((item) => item.code == normalizedCode || item.qrCodes.contains(normalizedCode)).isNotEmpty
+        ? state.firstWhere((item) => item.code == normalizedCode || item.qrCodes.contains(normalizedCode))
         : null;
 
+    List<String> updatedQrCodes = [];
     if (existing != null) {
+      updatedQrCodes = List<String>.from(existing.qrCodes);
+      if (qrCode != null && qrCode.isNotEmpty && !updatedQrCodes.contains(qrCode)) {
+        updatedQrCodes.add(qrCode);
+      }
       final updated = InventoryItem(
         code: existing.code,
         name: existing.name,
         quantity: existing.quantity + quantity,
         updatedAt: DateTime.now(),
+        qrCodes: updatedQrCodes,
       );
       await _service.saveItem(updated);
     } else {
+      if (qrCode != null && qrCode.isNotEmpty) {
+        updatedQrCodes.add(qrCode);
+      }
       final created = InventoryItem(
         code: normalizedCode,
         name: name.isEmpty ? 'Sản phẩm $normalizedCode' : name,
         quantity: quantity,
         updatedAt: DateTime.now(),
+        qrCodes: updatedQrCodes,
       );
       await _service.saveItem(created);
     }
@@ -53,8 +63,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
       HistoryEntry(
         id: 'import_${DateTime.now().millisecondsSinceEpoch}',
         type: 'import',
-        code: normalizedCode,
-        name: name.isEmpty ? 'Sản phẩm $normalizedCode' : name,
+        code: existing?.code ?? normalizedCode,
+        name: existing?.name ?? (name.isEmpty ? 'Sản phẩm $normalizedCode' : name),
         quantity: quantity,
         createdAt: DateTime.now(),
       ),
@@ -63,11 +73,11 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
     await loadInventory();
   }
 
-  Future<bool> removeStock(String code, int quantity) async {
+  Future<bool> removeStock(String code, int quantity, {String? qrCode}) async {
     final normalizedCode = _normalizeCode(code);
     final existing =
-        state.where((item) => item.code == normalizedCode).isNotEmpty
-        ? state.firstWhere((item) => item.code == normalizedCode)
+        state.where((item) => item.code == normalizedCode || item.qrCodes.contains(normalizedCode)).isNotEmpty
+        ? state.firstWhere((item) => item.code == normalizedCode || item.qrCodes.contains(normalizedCode))
         : null;
 
     if (existing == null || quantity <= 0 || existing.quantity < quantity) {
@@ -75,14 +85,20 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
     }
 
     final nextQuantity = existing.quantity - quantity;
+    List<String> updatedQrCodes = List<String>.from(existing.qrCodes);
+    if (qrCode != null && qrCode.isNotEmpty && !updatedQrCodes.contains(qrCode)) {
+      updatedQrCodes.add(qrCode);
+    }
+
     if (nextQuantity <= 0) {
-      await _service.deleteItem(code);
+      await _service.deleteItem(existing.code);
     } else {
       final updated = InventoryItem(
         code: existing.code,
         name: existing.name,
         quantity: nextQuantity,
         updatedAt: DateTime.now(),
+        qrCodes: updatedQrCodes,
       );
       await _service.saveItem(updated);
     }
@@ -107,7 +123,7 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
   InventoryItem? getItemByCode(String code) {
     final normalized = _normalizeCode(code);
     for (final item in state) {
-      if (item.code == normalized) return item;
+      if (item.code == normalized || item.qrCodes.contains(normalized)) return item;
     }
     return null;
   }
@@ -118,7 +134,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
 
     return state.where((item) {
       return item.code.toLowerCase().contains(value) ||
-          item.name.toLowerCase().contains(value);
+          item.name.toLowerCase().contains(value) ||
+          item.qrCodes.any((qr) => qr.toLowerCase().contains(value));
     }).toList();
   }
 
@@ -128,7 +145,8 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
 
     return state.where((item) {
       return item.code.toLowerCase().contains(value) ||
-          item.name.toLowerCase().contains(value);
+          item.name.toLowerCase().contains(value) ||
+          item.qrCodes.any((qr) => qr.toLowerCase().contains(value));
     }).toList();
   }
 
