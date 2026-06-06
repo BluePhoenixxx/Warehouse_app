@@ -211,7 +211,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: inventory.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final item = inventory[index];
                         return Card(

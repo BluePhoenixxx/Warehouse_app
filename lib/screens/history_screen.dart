@@ -99,7 +99,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                   return ListView.separated(
                     itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final entry = filtered[index];
                       final isImport = entry.type == 'import';

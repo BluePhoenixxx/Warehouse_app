@@ -30,7 +30,7 @@ class BackupService {
     final history = await _hiveService.exportHistory();
     final bytes = Uint8List.fromList(utf8.encode(jsonEncode({'items': items, 'history': history})));
 
-    final path = await FilePicker.saveFile(
+    final path = await FilePicker.platform.saveFile(
       dialogTitle: 'Lưu file backup kho hàng',
       fileName: 'warehouse_backup_${DateTime.now().millisecondsSinceEpoch}.json',
       type: FileType.custom,
@@ -54,7 +54,7 @@ class BackupService {
   }
 
   Future<String?> pickBackupFile() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
       allowMultiple: false,
